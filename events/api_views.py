@@ -1,6 +1,50 @@
 from django.http import JsonResponse
-
 from .models import Conference, Location
+from common.json import ModelEncoder
+
+
+class LocationListEncoder(ModelEncoder):
+    model = Location
+    properties = ["name"]
+
+
+class ConferenceDetailEncoder(ModelEncoder):
+    model = Conference
+    properties = [
+        "name",
+        "description",
+        "max_presentations",
+        "max_attendees",
+        "starts",
+        "ends",
+        "created",
+        "updated",
+        "location",
+    ]
+    encoders = {
+        "location": LocationListEncoder(),
+    }
+
+
+class ConferenceListEncoder(ModelEncoder):
+    model = Conference
+    properties = [
+        "name",
+    ]
+
+
+class LocationDetailEncoder(ModelEncoder):
+    model = Location
+    properties = [
+        "name",
+        "city",
+        "room_count",
+        "created",
+        "updated",
+    ]
+
+    def get_extra_data(self, o):
+        return {"state": o.state.abbreviation}
 
 
 def api_list_conferences(request):
@@ -22,16 +66,11 @@ def api_list_conferences(request):
         ]
     }
     """
-    response = []
     conferences = Conference.objects.all()
-    for conference in conferences:
-        response.append(
-            {
-                "name": conference.name,
-                "href": conference.get_api_url(),
-            }
-        )
-    return JsonResponse({"conferences": response})
+    return JsonResponse(
+        {"conferences": conferences},
+        encoder=ConferenceListEncoder,
+    )
 
 
 def api_show_conference(request, id):
@@ -61,20 +100,9 @@ def api_show_conference(request, id):
     """
     conference = Conference.objects.get(id=id)
     return JsonResponse(
-        {
-            "name": conference.name,
-            "starts": conference.starts,
-            "ends": conference.ends,
-            "description": conference.description,
-            "created": conference.created,
-            "updated": conference.updated,
-            "max_presentations": conference.max_presentations,
-            "max_attendees": conference.max_attendees,
-            "location": {
-                "name": conference.location.name,
-                "href": conference.location.get_api_url(),
-            },
-        }
+        conference,
+        encoder=ConferenceDetailEncoder,
+        safe=False,
     )
 
 
@@ -97,7 +125,11 @@ def api_list_locations(request):
         ]
     }
     """
-    return JsonResponse({})
+    locations = Location.objects.all()
+    return JsonResponse(
+        {"locations": locations},
+        encoder=LocationListEncoder,
+    )
 
 
 def api_show_location(request, id):
@@ -117,4 +149,9 @@ def api_show_location(request, id):
         "state": the two-letter abbreviation for the state,
     }
     """
-    return JsonResponse({})
+    location = Location.objects.get(id=id)
+    return JsonResponse(
+        location,
+        encoder=LocationDetailEncoder,
+        safe=False,
+    )
