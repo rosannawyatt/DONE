@@ -109,6 +109,14 @@ def api_show_attendee(request, id):
         )
     elif request.method == "PUT":
         content = json.loads(request.body)
+        try:
+            conference = Conference.objects.get(id=content["conference"])
+            content["conference"] = conference
+        except Conference.DoesNotExist:
+            return JsonResponse(
+                {"message": "Invalid conference id"},
+                status=400,
+            )
         Attendee.objects.filter(id=id).update(**content)
         attendee = Attendee.objects.get(id=id)
         return JsonResponse(
